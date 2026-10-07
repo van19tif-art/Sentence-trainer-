@@ -1,4 +1,4 @@
-name: Build Sentence Trainer APK
+Build Sentence Trainer APK
 
 on:
   workflow_dispatch:
@@ -24,11 +24,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-
-      - name: Build APK
+        uses: gradle
         working-directory: project/SentenceTrainer
         run: gradle assembleDebug
 
@@ -37,3 +33,4 @@ jobs:
         with:
           name: SentenceTrainer-APK
           path: project/SentenceTrainer/app/build/outputs/apk/debug/app-debug.apk
+          
