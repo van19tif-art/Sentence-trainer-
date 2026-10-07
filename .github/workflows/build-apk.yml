@@ -35,6 +35,7 @@ jobs:
       - name: Configure AndroidX
         run: |
           PROJECT_DIR=$(dirname "$(find project -name settings.gradle -o -name settings.gradle.kts | head -1)")
+
           echo "Project directory: $PROJECT_DIR"
 
           touch "$PROJECT_DIR/gradle.properties"
@@ -42,17 +43,31 @@ jobs:
           echo "android.useAndroidX=true" >> "$PROJECT_DIR/gradle.properties"
           echo "android.enableJetifier=true" >> "$PROJECT_DIR/gradle.properties"
 
-          echo "===== gradle.properties ====="
-          cat "$PROJECT_DIR/gradle.properties"
+      - name: Create Kotlin compatibility script
+        run: |
+          cat > /tmp/force-kotlin.gradle <<'EOF'
+          allprojects {
+              configurations.all {
+                  resolutionStrategy.eachDependency { details ->
+                      if (details.requested.group == "org.jetbrains.kotlin") {
+                          details.useVersion("1.8.22")
+                          details.because("Use one compatible Kotlin version to prevent duplicate classes")
+                      }
+                  }
+              }
+          }
+          EOF
 
       - name: Build APK
         run: |
           PROJECT_DIR=$(dirname "$(find project -name settings.gradle -o -name settings.gradle.kts | head -1)")
+
           echo "Building project in: $PROJECT_DIR"
 
           cd "$PROJECT_DIR"
 
           gradle assembleDebug \
+            --init-script /tmp/force-kotlin.gradle \
             -Pandroid.useAndroidX=true \
             -Pandroid.enableJetifier=true \
             --stacktrace
