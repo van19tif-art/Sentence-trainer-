@@ -1,4 +1,4 @@
-Build Sentence Trainer APK
+name: Build Sentence Trainer APK
 
 on:
   workflow_dispatch:
@@ -14,8 +14,19 @@ jobs:
 
       - name: Extract project
         run: |
-          mkdir project
+          mkdir -p project
           unzip -q SentenceTrainer-Android-CloudBuild.zip -d project
+
+          PROJECT_DIR=$(find project -type f -name "gradlew" -print -quit | xargs dirname)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: gradlew was not found"
+            find project -maxdepth 4 -type f | head -100
+            exit 1
+          fi
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Found Android project at: $PROJECT_DIR"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -24,13 +35,16 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle
-        working-directory: project/SentenceTrainer
-        run: gradle assembleDebug
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SentenceTrainer-APK
-          path: project/SentenceTrainer/app/build/outputs/apk/debug/app-debug.apk
-          
+          name: SentenceTrainer-debug
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
