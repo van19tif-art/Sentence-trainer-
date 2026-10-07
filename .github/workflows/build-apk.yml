@@ -17,16 +17,20 @@ jobs:
           mkdir -p project
           unzip -q SentenceTrainer-Android-CloudBuild.zip -d project
 
-          PROJECT_DIR=$(find project -type f -name "gradlew" -print -quit | xargs dirname)
+          echo "=== Files inside ZIP ==="
+          find project -maxdepth 5 -type f | sort
 
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: gradlew was not found"
-            find project -maxdepth 4 -type f | head -100
+          PROJECT_FILE=$(find project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" -o -name "build.gradle" -o -name "build.gradle.kts" \) -print -quit)
+
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "ERROR: No Gradle project files were found"
             exit 1
           fi
 
+          PROJECT_DIR=$(dirname "$PROJECT_FILE")
+
+          echo "PROJECT_DIR=$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "Found Android project at: $PROJECT_DIR"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -36,15 +40,22 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
 
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle assembleDebug --stacktrace
+
+      - name: Find APK
+        run: |
+          echo "=== APK files ==="
+          find "${{ env.PROJECT_DIR }}" -type f -name "*.apk" -print
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: SentenceTrainer-debug
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_DIR }}/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
